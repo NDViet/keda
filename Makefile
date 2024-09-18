@@ -47,7 +47,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 GO_BUILD_VARS= GO111MODULE=on CGO_ENABLED=$(CGO) GOOS=$(TARGET_OS) GOARCH=$(ARCH)
-GO_LDFLAGS="-X=github.com/kedacore/keda/v2/version.GitCommit=$(GIT_COMMIT) -X=github.com/kedacore/keda/v2/version.Version=$(VERSION)"
+GO_LDFLAGS="-X=github.com/$(IMAGE_REPO)/keda/v2/version.GitCommit=$(GIT_COMMIT) -X=github.com/$(IMAGE_REPO)/keda/v2/version.Version=$(VERSION)"
 
 COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
 
@@ -184,7 +184,7 @@ pkg/mock/mock_client/mock_interfaces.go: vendor/sigs.k8s.io/controller-runtime/p
 	mkdir -p pkg/mock/mock_client
 	$(MOCKGEN) sigs.k8s.io/controller-runtime/pkg/client Patch,Reader,Writer,StatusClient,StatusWriter,Client,WithWatch,FieldIndexer > $@
 pkg/scalers/liiklus/mocks/mock_liiklus.go:
-	$(MOCKGEN) -destination=$@ github.com/kedacore/keda/v2/pkg/scalers/liiklus LiiklusServiceClient
+	$(MOCKGEN) -destination=$@ github.com/$(IMAGE_REPO)/keda/v2/pkg/scalers/liiklus LiiklusServiceClient
 
 ##################################################
 # Build                                          #
@@ -233,11 +233,11 @@ publish-multiarch: publish-controller-multiarch publish-adapter-multiarch publis
 
 release: manifests kustomize set-version ## Produce new KEDA release in keda-$(VERSION).yaml file.
 	cd config/manager && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/keda=${IMAGE_CONTROLLER}
+	$(KUSTOMIZE) edit set image $(IMAGE_REGISTRY)/$(IMAGE_REPO)/keda=${IMAGE_CONTROLLER}
 	cd config/metrics-server && \
-    $(KUSTOMIZE) edit set image ghcr.io/kedacore/keda-metrics-apiserver=${IMAGE_ADAPTER}
+    $(KUSTOMIZE) edit set image $(IMAGE_REGISTRY)/$(IMAGE_REPO)/keda-metrics-apiserver=${IMAGE_ADAPTER}
 	cd config/webhooks && \
-    $(KUSTOMIZE) edit set image ghcr.io/kedacore/keda-admission-webhooks=${IMAGE_WEBHOOKS}
+    $(KUSTOMIZE) edit set image $(IMAGE_REGISTRY)/$(IMAGE_REPO)/keda-admission-webhooks=${IMAGE_WEBHOOKS}
 	# Need this workaround to mitigate a problem with inserting labels into selectors,
 	# until this issue is solved: https://github.com/kubernetes-sigs/kustomize/issues/1009
 	@sed -i".out" -e 's@version:[ ].*@version: $(VERSION)@g' config/default/kustomize-config/metadataLabelTransformer.yaml
@@ -271,12 +271,12 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 deploy: install ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/keda=${IMAGE_CONTROLLER} && \
+	$(KUSTOMIZE) edit set image $(IMAGE_REGISTRY)/$(IMAGE_REPO)/keda=${IMAGE_CONTROLLER} && \
 	if [ "$(AZURE_RUN_WORKLOAD_IDENTITY_TESTS)" = true ]; then \
 		$(KUSTOMIZE) edit add label --force azure.workload.identity/use:true; \
 	fi
 	cd config/metrics-server && \
-    $(KUSTOMIZE) edit set image ghcr.io/kedacore/keda-metrics-apiserver=${IMAGE_ADAPTER}
+    $(KUSTOMIZE) edit set image $(IMAGE_REGISTRY)/$(IMAGE_REPO)/keda-metrics-apiserver=${IMAGE_ADAPTER}
 
 	if [ "$(AZURE_RUN_WORKLOAD_IDENTITY_TESTS)" = true ]; then \
 		cd config/service_account && \
@@ -297,7 +297,7 @@ deploy: install ## Deploy controller to the K8s cluster specified in ~/.kube/con
 	fi
 
 	cd config/webhooks && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/keda-admission-webhooks=${IMAGE_WEBHOOKS}
+	$(KUSTOMIZE) edit set image $(IMAGE_REGISTRY)/$(IMAGE_REPO)/keda-admission-webhooks=${IMAGE_WEBHOOKS}
 
 	# Need this workaround to mitigate a problem with inserting labels into selectors,
 	# until this issue is solved: https://github.com/kubernetes-sigs/kustomize/issues/1009

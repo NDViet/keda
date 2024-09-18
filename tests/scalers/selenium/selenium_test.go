@@ -33,6 +33,8 @@ var (
 	hubHost               = fmt.Sprintf("selenium-hub.%s", testNamespace)
 	hubPort               = 4444
 	hubGraphURL           = fmt.Sprintf("http://%s:%d/graphql", hubHost, hubPort)
+	HubBasicAuthUsername  = "admin"
+	HubBasicAuthPassword  = "admin"
 	minReplicaCount       = 0
 	maxReplicaCount       = 1
 )
@@ -46,6 +48,8 @@ type templateData struct {
 	HubHost               string
 	HubPort               int
 	HubGraphURL           string
+	HubBasicAuthUsername  string
+	HubBasicAuthPassword  string
 	WithVersion           bool
 	JobName               string
 	ScaledObjectName      string
@@ -63,9 +67,9 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 data:
   SE_EVENT_BUS_HOST: selenium-hub
   SE_EVENT_BUS_PUBLISH_PORT: "4442"
@@ -82,9 +86,9 @@ metadata:
     name: selenium-chrome-node
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   type: ClusterIP
   selector:
@@ -107,9 +111,9 @@ metadata:
     app.kubernetes.io/name: selenium-chrome-node
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   replicas: 0
   selector:
@@ -123,7 +127,7 @@ spec:
     spec:
       containers:
       - name: selenium-chrome-node
-        image: selenium/node-chrome:4.0.0-rc-1-prerelease-20210618
+        image: selenium/node-chrome:latest
         imagePullPolicy: IfNotPresent
         envFrom:
         - configMapRef:
@@ -157,6 +161,8 @@ spec:
   - type: selenium-grid
     metadata:
       url: '{{.HubGraphURL}}'
+	  username: '{{.HubBasicAuthUsername}}'
+	  password: '{{.HubBasicAuthPassword}}'
       browserName: 'chrome'
       activationThreshold: '1'
 `
@@ -171,9 +177,9 @@ metadata:
     name: selenium-firefox-node
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   type: ClusterIP
   selector:
@@ -195,9 +201,9 @@ metadata:
     app.kubernetes.io/name: selenium-firefox-node
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   replicas: 0
   selector:
@@ -211,7 +217,7 @@ spec:
     spec:
       containers:
       - name: selenium-firefox-node
-        image: selenium/node-firefox:4.0.0-rc-1-prerelease-20210618
+        image: selenium/node-firefox:latest
         imagePullPolicy: IfNotPresent
         envFrom:
         - configMapRef:
@@ -245,6 +251,8 @@ spec:
     - type: selenium-grid
       metadata:
         url: '{{.HubGraphURL}}'
+	    username: '{{.HubBasicAuthUsername}}'
+	    password: '{{.HubBasicAuthPassword}}'
         browserName: 'firefox'
         activationThreshold: '1'
 `
@@ -259,9 +267,9 @@ metadata:
     name: selenium-edge-node
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   type: ClusterIP
   selector:
@@ -284,9 +292,9 @@ metadata:
     app.kubernetes.io/name: selenium-edge-node
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   replicas: 0
   selector:
@@ -300,7 +308,7 @@ spec:
     spec:
       containers:
       - name: selenium-edge-node
-        image: selenium/node-edge:4.0.0-rc-1-prerelease-20210618
+        image: selenium/node-edge:latest
         imagePullPolicy: IfNotPresent
         envFrom:
         - configMapRef:
@@ -334,6 +342,8 @@ spec:
   - type: selenium-grid
     metadata:
       url: '{{.HubGraphURL}}'
+	  username: '{{.HubBasicAuthUsername}}'
+	  password: '{{.HubBasicAuthPassword}}'
       browserName: 'MicrosoftEdge'
       sessionBrowserName: 'msedge'
       activationThreshold: '1'
@@ -349,9 +359,9 @@ metadata:
     app: selenium-hub
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   selector:
     app: selenium-hub
@@ -382,9 +392,9 @@ metadata:
     app.kubernetes.io/name: selenium-hub
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/instance: selenium-hpa
-    app.kubernetes.io/version: 4.0.0-beta-1-prerelease-20210114
-    app.kubernetes.io/component: selenium-grid-4.0.0-beta-1-prerelease-20210114
-    helm.sh/chart: selenium-grid-0.2.0
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: latest
+    helm.sh/chart: latest
 spec:
   replicas: 1
   selector:
@@ -396,8 +406,13 @@ spec:
     spec:
       containers:
       - name: selenium-hub
-        image: selenium/hub:4.0.0-rc-1-prerelease-20210618
+        image: selenium/hub:latest
         imagePullPolicy: IfNotPresent
+        env:
+		- name: SE_ROUTER_USERNAME
+		  value: '{{.HubBasicAuthUsername}}'
+		- name: SE_ROUTER_PASSWORD
+		  value: '{{.HubBasicAuthPassword}}'
         ports:
         - containerPort: 4444
           protocol: TCP
@@ -527,6 +542,8 @@ func getTemplateData() (templateData, []Template) {
 			HubHost:               hubHost,
 			HubPort:               hubPort,
 			HubGraphURL:           hubGraphURL,
+			HubBasicAuthUsername:  HubBasicAuthUsername,
+			HubBasicAuthPassword:  HubBasicAuthPassword,
 			ScaledObjectName:      scaledObjectName,
 			MinReplicaCount:       minReplicaCount,
 			MaxReplicaCount:       maxReplicaCount,
