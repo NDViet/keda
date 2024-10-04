@@ -24,37 +24,47 @@ const (
 )
 
 var (
-	testNamespace         = fmt.Sprintf("%s-ns", testName)
-	chromeDeploymentName  = fmt.Sprintf("%s-chrome", testName)
-	firefoxDeploymentName = fmt.Sprintf("%s-firefox", testName)
-	edgeDeploymentName    = fmt.Sprintf("%s-edge", testName)
-	hubDeploymentName     = fmt.Sprintf("%s-hub", testName)
-	scaledObjectName      = fmt.Sprintf("%s-so", testName)
-	hubHost               = fmt.Sprintf("selenium-hub.%s", testNamespace)
-	hubPort               = 4444
-	hubGraphURL           = fmt.Sprintf("http://%s:%d/graphql", hubHost, hubPort)
-	HubBasicAuthUsername  = "admin"
-	HubBasicAuthPassword  = "admin"
-	minReplicaCount       = 0
-	maxReplicaCount       = 1
+	testNamespace              = fmt.Sprintf("%s-ns", testName)
+	secretName                 = fmt.Sprintf("%s-secret", testName)
+	triggerAuthName            = fmt.Sprintf("%s-trigger-auth", testName)
+	chromeDeploymentName       = fmt.Sprintf("%s-chrome", testName)
+	firefoxDeploymentName      = fmt.Sprintf("%s-firefox", testName)
+	edgeDeploymentName         = fmt.Sprintf("%s-edge", testName)
+	hubDeploymentName          = fmt.Sprintf("%s-hub", testName)
+	scaledObjectName           = fmt.Sprintf("%s-so", testName)
+	hubHost                    = fmt.Sprintf("%s:%s@selenium-hub.%s", hubBasicAuthUsername, hubBasicAuthPassword, testNamespace)
+	hubPort                    = 4444
+	hubGraphURL                = fmt.Sprintf("http://%s:%d/graphql", hubHost, hubPort)
+	hubBasicAuthUsername       = "admin"
+	hubBasicAuthPassword       = "admin"
+	hubBasicAuthUsernameB64enc = "YWRtaW4="
+	hubBasicAuthPasswordB64enc = "YWRtaW4="
+	hubBasicAuthHeader         = "YWRtaW46YWRtaW4="
+	minReplicaCount            = 0
+	maxReplicaCount            = 1
 )
 
 type templateData struct {
-	TestNamespace         string
-	ChromeDeploymentName  string
-	FirefoxDeploymentName string
-	EdgeDeploymentName    string
-	HubDeploymentName     string
-	HubHost               string
-	HubPort               int
-	HubGraphURL           string
-	HubBasicAuthUsername  string
-	HubBasicAuthPassword  string
-	WithVersion           bool
-	JobName               string
-	ScaledObjectName      string
-	MinReplicaCount       int
-	MaxReplicaCount       int
+	TestNamespace              string
+	SecretName                 string
+	TriggerAuthName            string
+	ChromeDeploymentName       string
+	FirefoxDeploymentName      string
+	EdgeDeploymentName         string
+	HubDeploymentName          string
+	HubHost                    string
+	HubPort                    int
+	HubGraphURL                string
+	HubBasicAuthUsername       string
+	HubBasicAuthPassword       string
+	HubBasicAuthUsernameB64enc string
+	HubBasicAuthPasswordB64enc string
+	HubBasicAuthHeader         string
+	WithVersion                bool
+	JobName                    string
+	ScaledObjectName           string
+	MinReplicaCount            int
+	MaxReplicaCount            int
 }
 
 const (
@@ -145,6 +155,34 @@ spec:
           sizeLimit: 1Gi
 `
 
+	secretTemplate = `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{.SecretName}}
+  namespace: {{.TestNamespace}}
+type: Opaque
+data:
+  username: '{{.HubBasicAuthUsernameB64enc}}'
+  password: '{{.HubBasicAuthPasswordB64enc}}'
+`
+
+	scaledTriggerAuthTemplate = `
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{.TriggerAuthName}}
+  namespace: {{.TestNamespace}}
+spec:
+  secretTargetRef:
+  - parameter: username
+    name: {{.SecretName}}
+    key: username
+  - parameter: password
+    name: {{.SecretName}}
+    key: password
+`
+
 	chromeScaledObjectTemplate = `
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -161,10 +199,10 @@ spec:
   - type: selenium-grid
     metadata:
       url: '{{.HubGraphURL}}'
-	  username: '{{.HubBasicAuthUsername}}'
-	  password: '{{.HubBasicAuthPassword}}'
       browserName: 'chrome'
       activationThreshold: '1'
+    authenticationRef:
+      name: '{{.TriggerAuthName}}'
 `
 
 	firefoxNodeServiceTemplate = `
@@ -251,10 +289,10 @@ spec:
     - type: selenium-grid
       metadata:
         url: '{{.HubGraphURL}}'
-	    username: '{{.HubBasicAuthUsername}}'
-	    password: '{{.HubBasicAuthPassword}}'
         browserName: 'firefox'
         activationThreshold: '1'
+      authenticationRef:
+        name: '{{.TriggerAuthName}}'
 `
 
 	edgeNodeServiceTemplate = `
@@ -342,11 +380,11 @@ spec:
   - type: selenium-grid
     metadata:
       url: '{{.HubGraphURL}}'
-	  username: '{{.HubBasicAuthUsername}}'
-	  password: '{{.HubBasicAuthPassword}}'
       browserName: 'MicrosoftEdge'
       sessionBrowserName: 'msedge'
       activationThreshold: '1'
+    authenticationRef:
+      name: '{{.TriggerAuthName}}'
 `
 
 	hubServiceTemplate = `
@@ -409,10 +447,10 @@ spec:
         image: selenium/hub:latest
         imagePullPolicy: IfNotPresent
         env:
-		- name: SE_ROUTER_USERNAME
-		  value: '{{.HubBasicAuthUsername}}'
-		- name: SE_ROUTER_PASSWORD
-		  value: '{{.HubBasicAuthPassword}}'
+        - name: SE_ROUTER_USERNAME
+          value: '{{.HubBasicAuthUsername}}'
+        - name: SE_ROUTER_PASSWORD
+          value: '{{.HubBasicAuthPassword}}'
         ports:
         - containerPort: 4444
           protocol: TCP
@@ -424,6 +462,9 @@ spec:
           httpGet:
             path: /wd/hub/status
             port: 4444
+            httpHeaders:
+              - name: Authorization
+                value: Basic {{.HubBasicAuthHeader}}
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 10
@@ -433,6 +474,9 @@ spec:
           httpGet:
             path: /wd/hub/status
             port: 4444
+            httpHeaders:
+              - name: Authorization
+                value: Basic {{.HubBasicAuthHeader}}
           initialDelaySeconds: 12
           periodSeconds: 10
           timeoutSeconds: 10
@@ -534,20 +578,27 @@ func testScaleIn(t *testing.T, kc *kubernetes.Clientset) {
 
 func getTemplateData() (templateData, []Template) {
 	return templateData{
-			TestNamespace:         testNamespace,
-			ChromeDeploymentName:  chromeDeploymentName,
-			FirefoxDeploymentName: firefoxDeploymentName,
-			EdgeDeploymentName:    edgeDeploymentName,
-			HubDeploymentName:     hubDeploymentName,
-			HubHost:               hubHost,
-			HubPort:               hubPort,
-			HubGraphURL:           hubGraphURL,
-			HubBasicAuthUsername:  HubBasicAuthUsername,
-			HubBasicAuthPassword:  HubBasicAuthPassword,
-			ScaledObjectName:      scaledObjectName,
-			MinReplicaCount:       minReplicaCount,
-			MaxReplicaCount:       maxReplicaCount,
+			TestNamespace:              testNamespace,
+			SecretName:                 secretName,
+			TriggerAuthName:            triggerAuthName,
+			ChromeDeploymentName:       chromeDeploymentName,
+			FirefoxDeploymentName:      firefoxDeploymentName,
+			EdgeDeploymentName:         edgeDeploymentName,
+			HubDeploymentName:          hubDeploymentName,
+			HubHost:                    hubHost,
+			HubPort:                    hubPort,
+			HubGraphURL:                hubGraphURL,
+			HubBasicAuthUsername:       hubBasicAuthUsername,
+			HubBasicAuthPassword:       hubBasicAuthPassword,
+			HubBasicAuthUsernameB64enc: hubBasicAuthUsernameB64enc,
+			HubBasicAuthPasswordB64enc: hubBasicAuthPasswordB64enc,
+			HubBasicAuthHeader:         hubBasicAuthHeader,
+			ScaledObjectName:           scaledObjectName,
+			MinReplicaCount:            minReplicaCount,
+			MaxReplicaCount:            maxReplicaCount,
 		}, []Template{
+			{Name: "secretTemplate", Config: secretTemplate},
+			{Name: "scaledTriggerAuthTemplate", Config: scaledTriggerAuthTemplate},
 			{Name: "eventBusConfigTemplate", Config: eventBusConfigTemplate},
 			{Name: "hubDeploymentTemplate", Config: hubDeploymentTemplate},
 			{Name: "hubServiceTemplate", Config: hubServiceTemplate},
