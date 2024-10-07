@@ -29,10 +29,10 @@ type seleniumGridScalerMetadata struct {
 	triggerIndex int
 
 	URL                 string `keda:"name=url,                      order=authParams;triggerMetadata"`
-	AuthType            string `keda:"name=authType,                 order=authParams, optional"`
-	Username            string `keda:"name=username,                 order=authParams, optional"`
-	Password            string `keda:"name=password,                 order=authParams, optional"`
-	AccessToken         string `keda:"name=accessToken,              order=authParams, optional"`
+	AuthType            string `keda:"name=authType,                 order=authParams;resolvedEnv, optional"`
+	Username            string `keda:"name=username,                 order=authParams;resolvedEnv, optional"`
+	Password            string `keda:"name=password,                 order=authParams;resolvedEnv, optional"`
+	AccessToken         string `keda:"name=accessToken,              order=authParams;resolvedEnv, optional"`
 	BrowserName         string `keda:"name=browserName,              order=triggerMetadata"`
 	SessionBrowserName  string `keda:"name=sessionBrowserName,       order=triggerMetadata, optional"`
 	ActivationThreshold int64  `keda:"name=activationThreshold,      order=triggerMetadata, optional"`

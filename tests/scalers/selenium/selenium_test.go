@@ -34,7 +34,7 @@ var (
 	scaledObjectName           = fmt.Sprintf("%s-so", testName)
 	hubHost                    = fmt.Sprintf("%s:%s@selenium-hub.%s", hubBasicAuthUsername, hubBasicAuthPassword, testNamespace)
 	hubPort                    = 4444
-	hubGraphURL                = fmt.Sprintf("http://%s:%d/graphql", hubHost, hubPort)
+	hubGraphURL                = fmt.Sprintf("http://selenium-hub.%s:%d/graphql", testNamespace, hubPort)
 	hubBasicAuthUsername       = "admin"
 	hubBasicAuthPassword       = "admin"
 	hubBasicAuthUsernameB64enc = "YWRtaW4="
