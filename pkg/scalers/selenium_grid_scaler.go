@@ -36,12 +36,11 @@ type seleniumGridScalerMetadata struct {
 	BrowserName         string `keda:"name=browserName,              order=triggerMetadata"`
 	SessionBrowserName  string `keda:"name=sessionBrowserName,       order=triggerMetadata, optional"`
 	ActivationThreshold int64  `keda:"name=activationThreshold,      order=triggerMetadata, optional"`
-	BrowserVersion      string `keda:"name=browserVersion,           order=triggerMetadata, optional, default=latest"`
-	UnsafeSsl           bool   `keda:"name=unsafeSsl,                order=triggerMetadata, optional, default=false"`
-	PlatformName        string `keda:"name=platformName,             order=triggerMetadata, optional, default=linux"`
-	NodeMaxSessions     int    `keda:"name=nodeMaxSessions,          order=triggerMetadata, optional, default=1"`
-
-	TargetValue int64
+	BrowserVersion      string `keda:"name=browserVersion,           order=triggerMetadata, default=latest"`
+	UnsafeSsl           bool   `keda:"name=unsafeSsl,                order=triggerMetadata, default=false"`
+	PlatformName        string `keda:"name=platformName,             order=triggerMetadata, default=linux"`
+	NodeMaxSessions     int    `keda:"name=nodeMaxSessions,          order=triggerMetadata, default=1"`
+	TargetQueueLength   int64  `keda:"name=targetQueueLength,        order=triggerMetadata;resolvedEnv, default=1"`
 }
 
 type SeleniumResponse struct {
@@ -107,7 +106,8 @@ type Stereotypes []struct {
 }
 
 const (
-	DefaultBrowserVersion string = "latest"
+	DefaultBrowserVersion    string = "latest"
+	DefaultTargetQueueLength int64  = 1
 )
 
 func NewSeleniumGridScaler(config *scalersconfig.ScalerConfig) (Scaler, error) {
@@ -135,9 +135,7 @@ func NewSeleniumGridScaler(config *scalersconfig.ScalerConfig) (Scaler, error) {
 }
 
 func parseSeleniumGridScalerMetadata(config *scalersconfig.ScalerConfig) (*seleniumGridScalerMetadata, error) {
-	meta := &seleniumGridScalerMetadata{
-		TargetValue: 1,
-	}
+	meta := &seleniumGridScalerMetadata{}
 
 	if err := config.TypedConfig(meta); err != nil {
 		return nil, fmt.Errorf("error parsing prometheus metadata: %w", err)
@@ -147,6 +145,10 @@ func parseSeleniumGridScalerMetadata(config *scalersconfig.ScalerConfig) (*selen
 
 	if meta.SessionBrowserName == "" {
 		meta.SessionBrowserName = meta.BrowserName
+	}
+
+	if meta.TargetQueueLength < 1 {
+		meta.TargetQueueLength = DefaultTargetQueueLength
 	}
 	return meta, nil
 }
@@ -160,23 +162,24 @@ func (s *seleniumGridScaler) Close(context.Context) error {
 }
 
 func (s *seleniumGridScaler) GetMetricsAndActivity(ctx context.Context, metricName string) ([]external_metrics.ExternalMetricValue, bool, error) {
-	sessions, err := s.getSessionsCount(ctx, s.logger)
+	queueLen, err := s.getSessionsQueueLength(ctx, s.logger)
 	if err != nil {
 		return []external_metrics.ExternalMetricValue{}, false, fmt.Errorf("error requesting selenium grid endpoint: %w", err)
 	}
 
-	metric := GenerateMetricInMili(metricName, float64(sessions))
+	metric := GenerateMetricInMili(metricName, float64(queueLen))
 
-	return []external_metrics.ExternalMetricValue{metric}, sessions > s.metadata.ActivationThreshold, nil
+	// If the number of sessions queued is equal to or greater than the targetQueueLength, the scaler will scale up.
+	return []external_metrics.ExternalMetricValue{metric}, queueLen >= s.metadata.TargetQueueLength, nil
 }
 
 func (s *seleniumGridScaler) GetMetricSpecForScaling(context.Context) []v2.MetricSpec {
-	metricName := kedautil.NormalizeString(fmt.Sprintf("seleniumgrid-%s", s.metadata.BrowserName))
+	metricName := kedautil.NormalizeString(fmt.Sprintf("selenium-grid-%s-%s-%s", s.metadata.BrowserName, s.metadata.BrowserVersion, s.metadata.PlatformName))
 	externalMetric := &v2.ExternalMetricSource{
 		Metric: v2.MetricIdentifier{
 			Name: GenerateMetricNameWithIndex(s.metadata.triggerIndex, metricName),
 		},
-		Target: GetMetricTarget(s.metricType, s.metadata.TargetValue),
+		Target: GetMetricTarget(s.metricType, s.metadata.TargetQueueLength),
 	}
 	metricSpec := v2.MetricSpec{
 		External: externalMetric, Type: externalMetricType,
@@ -184,7 +187,7 @@ func (s *seleniumGridScaler) GetMetricSpecForScaling(context.Context) []v2.Metri
 	return []v2.MetricSpec{metricSpec}
 }
 
-func (s *seleniumGridScaler) getSessionsCount(ctx context.Context, logger logr.Logger) (int64, error) {
+func (s *seleniumGridScaler) getSessionsQueueLength(ctx context.Context, logger logr.Logger) (int64, error) {
 	body, err := json.Marshal(map[string]string{
 		"query": "{ grid { sessionCount, maxSession, totalSlots }, nodesInfo { nodes { id, status, sessionCount, maxSession, slotCount, stereotypes, sessions { id, capabilities, slot { id, stereotype } } } }, sessionsInfo { sessionQueueRequests } }",
 	})
