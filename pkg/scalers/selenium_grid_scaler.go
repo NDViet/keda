@@ -40,7 +40,8 @@ type seleniumGridScalerMetadata struct {
 	UnsafeSsl           bool   `keda:"name=unsafeSsl,                order=triggerMetadata, default=false"`
 	PlatformName        string `keda:"name=platformName,             order=triggerMetadata, default=linux"`
 	NodeMaxSessions     int64  `keda:"name=nodeMaxSessions,          order=triggerMetadata, default=1"`
-	TargetValue         int64  `keda:"name=targetValue,              order=triggerMetadata;resolvedEnv, default=1"`
+
+	TargetValue int64
 }
 
 type SeleniumResponse struct {
@@ -134,7 +135,9 @@ func NewSeleniumGridScaler(config *scalersconfig.ScalerConfig) (Scaler, error) {
 }
 
 func parseSeleniumGridScalerMetadata(config *scalersconfig.ScalerConfig) (*seleniumGridScalerMetadata, error) {
-	meta := &seleniumGridScalerMetadata{}
+	meta := &seleniumGridScalerMetadata{
+		TargetValue: 1,
+	}
 
 	if err := config.TypedConfig(meta); err != nil {
 		return nil, fmt.Errorf("error parsing prometheus metadata: %w", err)
@@ -174,7 +177,7 @@ func (s *seleniumGridScaler) GetMetricSpecForScaling(context.Context) []v2.Metri
 		Metric: v2.MetricIdentifier{
 			Name: GenerateMetricNameWithIndex(s.metadata.triggerIndex, metricName),
 		},
-		Target: GetMetricTarget(s.metricType, s.metadata.TargetValue),
+		Target: GetMetricTarget(s.metricType, s.metadata.NodeMaxSessions),
 	}
 	metricSpec := v2.MetricSpec{
 		External: externalMetric, Type: externalMetricType,
@@ -294,10 +297,7 @@ func updateOrAddReservedNode(reservedNodes []ReservedNodes, nodeID string, slotC
 }
 
 func getCountFromSeleniumResponse(b []byte, browserName string, browserVersion string, sessionBrowserName string, platformName string, nodeMaxSessions int64, logger logr.Logger) (int64, int64, error) {
-	// Track number of available slots of existing Nodes in the Grid can be reserved for the matched requests
-	var availableSlots int64
-	// Track number of matched requests in the sessions queue will be served by this scaler
-	var queueSlots int64
+	var pendingSessions int64
 
 	var seleniumResponse = SeleniumResponse{}
 	if err := json.Unmarshal(b, &seleniumResponse); err != nil {
@@ -306,74 +306,26 @@ func getCountFromSeleniumResponse(b []byte, browserName string, browserVersion s
 
 	var sessionQueueRequests = seleniumResponse.Data.SessionsInfo.SessionQueueRequests
 	var nodes = seleniumResponse.Data.NodesInfo.Nodes
-	// Track list of existing Nodes that have available slots for the matched requests
-	var reservedNodes []ReservedNodes
-	// Track list of new Nodes will be scaled up with number of available slots following scaler parameter `nodeMaxSessions`
-	var newRequestNodes []ReservedNodes
 	var onGoingSessions int64
-	for requestIndex, sessionQueueRequest := range sessionQueueRequests {
-		var isRequestMatched bool
+	for _, sessionQueueRequest := range sessionQueueRequests {
 		var requestCapability = Capability{}
 		if err := json.Unmarshal([]byte(sessionQueueRequest), &requestCapability); err == nil {
 			if checkCapabilitiesMatch(requestCapability, requestCapability, browserName, browserVersion, sessionBrowserName, platformName) {
-				queueSlots++
-				isRequestMatched = true
+				pendingSessions++
 			}
 		} else {
 			logger.Error(err, fmt.Sprintf("Error when unmarshaling sessionQueueRequest capability: %s", err))
 		}
 
-		// Skip the request if the capability does not match the scaler parameters
-		if !isRequestMatched {
-			continue
-		}
-
-		var isRequestReserved bool
 		var sumOfCurrentSessionsMatch int64
-		// Check if the matched request can be assigned to available slots of existing Nodes in the Grid
 		for _, node := range nodes {
-			// Count ongoing sessions that match the request capability and scaler metadata
 			var currentSessionsMatch = countMatchingSessions(node.Sessions, requestCapability, browserName, browserVersion, sessionBrowserName, platformName, logger)
 			sumOfCurrentSessionsMatch += currentSessionsMatch
-			// Check if node is UP and has available slots (maxSession > sessionCount)
-			if strings.EqualFold(node.Status, "UP") && checkNodeReservedSlots(reservedNodes, node.ID, node.MaxSession-node.SessionCount) > 0 {
-				var stereotypes = Stereotypes{}
-				var availableSlotsMatch int64
-				if err := json.Unmarshal([]byte(node.Stereotypes), &stereotypes); err == nil {
-					// Count available slots that match the request capability and scaler metadata
-					availableSlotsMatch += countMatchingSlotsStereotypes(stereotypes, requestCapability, browserName, browserVersion, sessionBrowserName, platformName)
-				} else {
-					logger.Error(err, fmt.Sprintf("Error when unmarshaling node stereotypes: %s", err))
-				}
-				// Count remaining available slots can be reserved for this request
-				var availableSlotsCanBeReserved = checkNodeReservedSlots(reservedNodes, node.ID, node.MaxSession-node.SessionCount)
-				// Reserve one available slot for the request if available slots match is greater than current sessions match
-				if availableSlotsMatch > currentSessionsMatch {
-					availableSlots++
-					reservedNodes = updateOrAddReservedNode(reservedNodes, node.ID, availableSlotsCanBeReserved-1, node.MaxSession)
-					isRequestReserved = true
-					break
-				}
-			}
 		}
 		if sumOfCurrentSessionsMatch > onGoingSessions {
 			onGoingSessions = sumOfCurrentSessionsMatch
 		}
-		// Check if the matched request can be assigned to available slots of new Nodes will be scaled up, since the scaler parameter `nodeMaxSessions` can be greater than 1
-		if !isRequestReserved {
-			for _, newRequestNode := range newRequestNodes {
-				if newRequestNode.SlotCount > 0 {
-					newRequestNodes = updateOrAddReservedNode(newRequestNodes, newRequestNode.ID, newRequestNode.SlotCount-1, nodeMaxSessions)
-					isRequestReserved = true
-					break
-				}
-			}
-		}
-		// Check if a new Node should be scaled up to reserve for the matched request
-		if !isRequestReserved {
-			newRequestNodes = updateOrAddReservedNode(newRequestNodes, string(rune(requestIndex)), nodeMaxSessions-1, nodeMaxSessions)
-		}
 	}
 
-	return int64(len(newRequestNodes)), onGoingSessions, nil
+	return pendingSessions, onGoingSessions, nil
 }

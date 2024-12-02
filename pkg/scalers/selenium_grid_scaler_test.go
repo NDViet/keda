@@ -21,7 +21,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 	tests := []struct {
 		name                string
 		args                args
-		wantNewRequestNodes int64
+		wantPendingSessions int64
 		wantOnGoingSessions int64
 		wantErr             bool
 	}{
@@ -62,7 +62,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				`),
 				browserName: "",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -102,7 +103,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 4,
+			wantPendingSessions: 4,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -277,7 +279,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 2,
 			wantOnGoingSessions: 4,
 			wantErr:             false,
 		},
@@ -327,7 +329,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -376,7 +379,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -424,7 +428,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -475,7 +480,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 4,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -518,7 +524,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -575,7 +582,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 1,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -624,7 +631,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -682,7 +690,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 2,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -730,7 +738,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 1,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -790,7 +798,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 3,
+			wantPendingSessions: 3,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -850,7 +858,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 3,
+			wantPendingSessions: 3,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -910,7 +918,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 3,
+			wantPendingSessions: 3,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -955,7 +963,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 2,
 			wantOnGoingSessions: 1,
 			wantErr:             false,
 		},
@@ -994,7 +1002,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1037,7 +1046,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 1,
 			wantOnGoingSessions: 1,
 			wantErr:             false,
 		},
@@ -1082,7 +1091,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "dev",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 1,
 			wantOnGoingSessions: 1,
 			wantErr:             false,
 		},
@@ -1127,7 +1136,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 2,
 			wantOnGoingSessions: 1,
 			wantErr:             false,
 		},
@@ -1167,7 +1176,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		}, {
 			name: "2 queue requests with platformName and without platformName and node with 1 slot available should return count as 1",
@@ -1210,7 +1220,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "Windows 11",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 2,
 			wantOnGoingSessions: 1,
 			wantErr:             false,
 		},
@@ -1255,7 +1265,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1300,7 +1311,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 3,
+			wantPendingSessions: 3,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1329,7 +1341,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "",
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1368,7 +1381,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "Windows 11",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1416,7 +1430,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "Windows 11",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 1,
 			wantOnGoingSessions: 1,
 			wantErr:             false,
 		},
@@ -1451,7 +1465,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 				nodeMaxSessions:    2,
 			},
-			wantNewRequestNodes: 3,
+			wantPendingSessions: 5,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1485,7 +1500,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 				nodeMaxSessions:    3,
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 5,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1537,7 +1553,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 				nodeMaxSessions:    3,
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 5,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -1578,7 +1594,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 0,
+			wantPendingSessions: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1620,7 +1637,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 4,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1652,7 +1670,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 				nodeMaxSessions:    2,
 			},
-			wantNewRequestNodes: 2,
+			wantPendingSessions: 4,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1702,7 +1721,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0.4472.114",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantPendingSessions: 1,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -1714,8 +1733,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				t.Errorf("getCountFromSeleniumResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(newRequestNodes, tt.wantNewRequestNodes) || !reflect.DeepEqual(onGoingSessions, tt.wantOnGoingSessions) {
-				t.Errorf("getCountFromSeleniumResponse() = [%v, %v], want [%v, %v]", newRequestNodes, onGoingSessions, tt.wantNewRequestNodes, tt.wantOnGoingSessions)
+			if !reflect.DeepEqual(newRequestNodes, tt.wantPendingSessions) || !reflect.DeepEqual(onGoingSessions, tt.wantOnGoingSessions) {
+				t.Errorf("getCountFromSeleniumResponse() = [%v, %v], want [%v, %v]", newRequestNodes, onGoingSessions, tt.wantPendingSessions, tt.wantOnGoingSessions)
 			}
 		})
 	}
