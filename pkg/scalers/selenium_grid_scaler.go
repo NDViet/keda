@@ -96,9 +96,9 @@ type Slot struct {
 }
 
 type Capability struct {
-	BrowserName    string `json:"browserName"`
-	BrowserVersion string `json:"browserVersion"`
-	PlatformName   string `json:"platformName"`
+	BrowserName    string `json:"browserName,omitempty"`
+	BrowserVersion string `json:"browserVersion,omitempty"`
+	PlatformName   string `json:"platformName,omitempty"`
 }
 
 type Stereotypes []struct {
@@ -227,22 +227,22 @@ func (s *seleniumGridScaler) getSessionsQueueLength(ctx context.Context, logger 
 	return newRequestNodes, onGoingSession, nil
 }
 
-func countMatchingSlotsStereotypes(stereotypes Stereotypes, request Capability, browserName string, browserVersion string, sessionBrowserName string, platformName string) int64 {
+func countMatchingSlotsStereotypes(stereotypes Stereotypes, browserName string, browserVersion string, sessionBrowserName string, platformName string) int64 {
 	var matchingSlots int64
 	for _, stereotype := range stereotypes {
-		if checkCapabilitiesMatch(stereotype.Stereotype, request, browserName, browserVersion, sessionBrowserName, platformName) {
+		if checkCapabilitiesMatch(stereotype.Stereotype, browserName, browserVersion, sessionBrowserName, platformName) {
 			matchingSlots += stereotype.Slots
 		}
 	}
 	return matchingSlots
 }
 
-func countMatchingSessions(sessions Sessions, request Capability, browserName string, browserVersion string, sessionBrowserName string, platformName string, logger logr.Logger) int64 {
+func countMatchingSessions(sessions Sessions, browserName string, browserVersion string, sessionBrowserName string, platformName string, logger logr.Logger) int64 {
 	var matchingSessions int64
 	for _, session := range sessions {
 		var capability = Capability{}
 		if err := json.Unmarshal([]byte(session.Capabilities), &capability); err == nil {
-			if checkCapabilitiesMatch(capability, request, browserName, browserVersion, sessionBrowserName, platformName) {
+			if checkCapabilitiesMatch(capability, browserName, browserVersion, sessionBrowserName, platformName) {
 				matchingSessions++
 			}
 		} else {
@@ -252,27 +252,41 @@ func countMatchingSessions(sessions Sessions, request Capability, browserName st
 	return matchingSessions
 }
 
-func checkCapabilitiesMatch(capability Capability, requestCapability Capability, browserName string, browserVersion string, sessionBrowserName string, platformName string) bool {
-	// Ensure the logic should be aligned with DefaultSlotMatcher in Selenium Grid - SeleniumHQ/selenium/java/src/org/openqa/selenium/grid/data/DefaultSlotMatcher.java
-	// A browserName matches when one of the following conditions is met:
-	// 1. `browserName` in capability matches with `browserName` or `sessionBrowserName` in scaler metadata
-	// 2. `browserName` in request capability is empty or not provided
-	var browserNameMatches = strings.EqualFold(capability.BrowserName, browserName) || strings.EqualFold(capability.BrowserName, sessionBrowserName) ||
-		requestCapability.BrowserName == ""
-	// A browserVersion matches when one of the following conditions is met:
-	// 1. `browserVersion` in request capability is empty or not provided or `stable`
-	// 2. `browserVersion` in capability matches with prefix of the scaler metadata `browserVersion`
-	// 3. `browserVersion` in scaler metadata is `latest`
-	var browserVersionMatches = requestCapability.BrowserVersion == "" || requestCapability.BrowserVersion == "stable" ||
-		strings.HasPrefix(capability.BrowserVersion, browserVersion) || browserVersion == DefaultBrowserVersion
-	// A platformName matches when one of the following conditions is met:
-	// 1. `platformName` in request capability is empty or not provided
-	// 2. `platformName` in capability is empty or not provided
-	// 3. `platformName` in capability matches with the scaler metadata `platformName`
-	// 4. `platformName` in scaler metadata is empty or not provided
-	var platformNameMatches = requestCapability.PlatformName == "" || capability.PlatformName == "" ||
-		strings.EqualFold(capability.PlatformName, platformName) || platformName == ""
-	return browserNameMatches && browserVersionMatches && platformNameMatches
+// This function checks if the request capabilities match the scaler metadata
+func checkRequestCapabilitiesMatch(request Capability, browserName string, browserVersion string, sessionBrowserName string, platformName string) bool {
+	// Check if browserName matches
+	browserNameMatch := request.BrowserName == "" ||
+		strings.EqualFold(request.BrowserName, browserName)
+
+	// Check if browserVersion matches
+	browserVersionMatch := (request.BrowserVersion == "" && browserVersion == DefaultBrowserVersion) ||
+		(request.BrowserVersion == "stable" && browserVersion == "") ||
+		(strings.HasPrefix(browserVersion, request.BrowserVersion) && (request.BrowserVersion != "" || browserVersion == "") && browserVersion != DefaultBrowserVersion)
+
+	// Check if platformName matches
+	platformNameMatch := request.PlatformName == "" ||
+		strings.EqualFold(request.PlatformName, platformName)
+
+	return browserNameMatch && browserVersionMatch && platformNameMatch
+}
+
+// This function checks if Node stereotypes or ongoing sessions match the scaler metadata
+func checkCapabilitiesMatch(capability Capability, browserName string, browserVersion string, sessionBrowserName string, platformName string) bool {
+	// Check if browserName matches
+	browserNameMatch := capability.BrowserName == "" ||
+		strings.EqualFold(capability.BrowserName, browserName) ||
+		strings.EqualFold(capability.BrowserName, sessionBrowserName)
+
+	// Check if browserVersion matches
+	browserVersionMatch := capability.BrowserVersion == "" ||
+		(capability.BrowserVersion != "" && browserVersion == DefaultBrowserVersion) ||
+		(browserVersion != DefaultBrowserVersion && strings.HasPrefix(browserVersion, capability.BrowserVersion) && capability.BrowserVersion != "")
+
+	// Check if platformName matches
+	platformNameMatch := capability.PlatformName == "" ||
+		strings.EqualFold(capability.PlatformName, platformName)
+
+	return browserNameMatch && browserVersionMatch && platformNameMatch
 }
 
 func checkNodeReservedSlots(reservedNodes []ReservedNodes, nodeID string, availableSlots int64) int64 {
@@ -318,7 +332,7 @@ func getCountFromSeleniumResponse(b []byte, browserName string, browserVersion s
 		var isRequestMatched bool
 		var requestCapability = Capability{}
 		if err := json.Unmarshal([]byte(sessionQueueRequest), &requestCapability); err == nil {
-			if checkCapabilitiesMatch(requestCapability, requestCapability, browserName, browserVersion, sessionBrowserName, platformName) {
+			if checkRequestCapabilitiesMatch(requestCapability, browserName, browserVersion, sessionBrowserName, platformName) {
 				queueSlots++
 				isRequestMatched = true
 			}
@@ -326,25 +340,18 @@ func getCountFromSeleniumResponse(b []byte, browserName string, browserVersion s
 			logger.Error(err, fmt.Sprintf("Error when unmarshaling sessionQueueRequest capability: %s", err))
 		}
 
-		// Skip the request if the capability does not match the scaler parameters
-		if !isRequestMatched {
-			continue
-		}
-
 		var isRequestReserved bool
-		var sumOfCurrentSessionsMatch int64
 		// Check if the matched request can be assigned to available slots of existing Nodes in the Grid
 		for _, node := range nodes {
-			// Count ongoing sessions that match the request capability and scaler metadata
-			var currentSessionsMatch = countMatchingSessions(node.Sessions, requestCapability, browserName, browserVersion, sessionBrowserName, platformName, logger)
-			sumOfCurrentSessionsMatch += currentSessionsMatch
 			// Check if node is UP and has available slots (maxSession > sessionCount)
-			if strings.EqualFold(node.Status, "UP") && checkNodeReservedSlots(reservedNodes, node.ID, node.MaxSession-node.SessionCount) > 0 {
+			if isRequestMatched && strings.EqualFold(node.Status, "UP") && checkNodeReservedSlots(reservedNodes, node.ID, node.MaxSession-node.SessionCount) > 0 {
+				// Count ongoing sessions that match the request capability and scaler metadata
+				var currentSessionsMatch = countMatchingSessions(node.Sessions, browserName, browserVersion, sessionBrowserName, platformName, logger)
 				var stereotypes = Stereotypes{}
 				var availableSlotsMatch int64
 				if err := json.Unmarshal([]byte(node.Stereotypes), &stereotypes); err == nil {
 					// Count available slots that match the request capability and scaler metadata
-					availableSlotsMatch += countMatchingSlotsStereotypes(stereotypes, requestCapability, browserName, browserVersion, sessionBrowserName, platformName)
+					availableSlotsMatch += countMatchingSlotsStereotypes(stereotypes, browserName, browserVersion, sessionBrowserName, platformName)
 				} else {
 					logger.Error(err, fmt.Sprintf("Error when unmarshaling node stereotypes: %s", err))
 				}
@@ -359,11 +366,8 @@ func getCountFromSeleniumResponse(b []byte, browserName string, browserVersion s
 				}
 			}
 		}
-		if sumOfCurrentSessionsMatch > onGoingSessions {
-			onGoingSessions = sumOfCurrentSessionsMatch
-		}
 		// Check if the matched request can be assigned to available slots of new Nodes will be scaled up, since the scaler parameter `nodeMaxSessions` can be greater than 1
-		if !isRequestReserved {
+		if isRequestMatched && !isRequestReserved {
 			for _, newRequestNode := range newRequestNodes {
 				if newRequestNode.SlotCount > 0 {
 					newRequestNodes = updateOrAddReservedNode(newRequestNodes, newRequestNode.ID, newRequestNode.SlotCount-1, nodeMaxSessions)
@@ -373,9 +377,14 @@ func getCountFromSeleniumResponse(b []byte, browserName string, browserVersion s
 			}
 		}
 		// Check if a new Node should be scaled up to reserve for the matched request
-		if !isRequestReserved {
+		if isRequestMatched && !isRequestReserved {
 			newRequestNodes = updateOrAddReservedNode(newRequestNodes, string(rune(requestIndex)), nodeMaxSessions-1, nodeMaxSessions)
 		}
+	}
+
+	// Count ongoing sessions across all nodes that match the scaler metadata
+	for _, node := range nodes {
+		onGoingSessions += countMatchingSessions(node.Sessions, browserName, browserVersion, sessionBrowserName, platformName, logger)
 	}
 
 	return int64(len(newRequestNodes)), onGoingSessions, nil

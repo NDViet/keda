@@ -63,6 +63,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserName: "",
 			},
 			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -103,6 +104,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 4,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -328,10 +330,11 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
-			name: "1 sessionQueueRequests Linux and 1 available nodeStereotypes Windows with matching browserName chrome should return count as 1",
+			name: `Given_2_requests_with_explicit_name_version_platform_When_2_existing_node_with_platform_not_matching_And_scaler_metadata_with_browser_version_as_latest_Then_scaler_should_not_scale_up_and_return_0`,
 			args: args{
 				b: []byte(`{
 				  "data": {
@@ -376,11 +379,12 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
-			name: "scaler browserVersion is latest, 2 sessionQueueRequests wihtout browserVersion, 2 available nodeStereotypes with different versions and platforms, should return count as 1",
+			name: "scaler browserVersion is latest, 2 sessionQueueRequests without browserVersion, 2 available nodeStereotypes with different versions and platforms, should return count as 1",
 			args: args{
 				b: []byte(`{
                     "data": {
@@ -425,6 +429,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -476,6 +481,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -519,6 +525,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -625,6 +632,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -795,7 +803,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 			wantErr:             false,
 		},
 		{
-			name: "3 queue requests with browserName browserVersion and platformName but 2 running nodes are busy with different versions should return count as 3",
+			name: "Given_3_requests_explicit_name_version_platform_When_2_existing_nodes_not_available_And_scaler_metadate_with_browserVersion_as_latest_Then_scaler_should_not_scale_up_and_return_2_on_going_session",
 			args: args{
 				b: []byte(`{
 					"data": {
@@ -850,8 +858,68 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 3,
+			wantNewRequestNodes: 0,
 			wantOnGoingSessions: 2,
+			wantErr:             false,
+		},
+		{
+			name: "Given_3_requests_explicit_name_version_platform_When_2_existing_nodes_not_available_And_scaler_metadate_with_browserVersion_92.0_Then_scaler_should_scale_up_1_and_return_0_on_going_session",
+			args: args{
+				b: []byte(`{
+					"data": {
+						"grid": {
+							"sessionCount": 2,
+							"maxSession": 2,
+							"totalSlots": 2
+						},
+						"nodesInfo": {
+							"nodes": [
+								{
+									"id": "node-1",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"91.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"91.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-2",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"91.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-2",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"91.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								}
+							]
+						},
+						"sessionsInfo": {
+							"sessionQueueRequests": [
+								"{\"browserName\": \"chrome\", \"browserVersion\": \"90.0\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"browserVersion\": \"92.0\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"browserVersion\": \"93.0\", \"platformName\": \"linux\"}"
+							]
+						}
+					}
+				}`),
+				browserName:        "chrome",
+				sessionBrowserName: "chrome",
+				browserVersion:     "92.0",
+				platformName:       "linux",
+			},
+			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -995,6 +1063,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1037,7 +1106,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "linux",
 			},
-			wantNewRequestNodes: 1,
+			wantNewRequestNodes: 0,
 			wantOnGoingSessions: 1,
 			wantErr:             false,
 		},
@@ -1168,6 +1237,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		}, {
 			name: "2 queue requests with platformName and without platformName and node with 1 slot available should return count as 1",
@@ -1256,6 +1326,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1301,10 +1372,11 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 3,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
-			name: "session request with matching browsername and no specific platformName should return count as 2",
+			name: "Given_2_requests_with_1_matching_browser_name_and_1_mismatch_platformName_When_no_node_available_Then_scaler_should_return_1_for_matching_request_and_0_ongoing_session",
 			args: args{
 				b: []byte(`{
 					"data": {
@@ -1329,7 +1401,8 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "latest",
 				platformName:       "",
 			},
-			wantNewRequestNodes: 2,
+			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1369,10 +1442,11 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "Windows 11",
 			},
 			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
-			name: "2 queue requests with 1 request matching browserName and platformName but 1 existing node is busy should return count as 1",
+			name: "Given_2_requests_without_browserVersion_When_scaler_metadata_explicit_name_version_platform_Then_scaler_should_not_scale_up_and_return_1_on_going_session",
 			args: args{
 				b: []byte(`{
 					"data": {
@@ -1389,7 +1463,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 									"sessionCount": 2,
 									"maxSession": 2,
 									"slotCount": 2,
-									"stereotypes": "[\n  {\n    \"slots\": 2,\n    \"stereotype\": {\n      \"browserName\": \"chrome\",\n      \"browserVersion\": \"128.0\",\n      \"goog:chromeOptions\": {\n        \"binary\": \"\\u002fusr\\u002fbin\\u002fchromium\"\n      },\n      \"se:containerName\": \"my-chrome-name-m5n8z-4br6x\",\n      \"se:downloadsEnabled\": true,\n      \"se:noVncPort\": 7900,\n      \"se:vncEnabled\": true\n    }\n  }\n]",
+									"stereotypes": "[\n  {\n    \"slots\": 2,\n    \"stereotype\": {\n      \"browserName\": \"chrome\",\n      \"browserVersion\": \"91.0\",\n      \"browserPlatform\": \"Windows 11\",\n      \"goog:chromeOptions\": {\n        \"binary\": \"\\u002fusr\\u002fbin\\u002fchromium\"\n      },\n      \"se:containerName\": \"my-chrome-name-m5n8z-4br6x\",\n      \"se:downloadsEnabled\": true,\n      \"se:noVncPort\": 7900,\n      \"se:vncEnabled\": true\n    }\n  }\n]",
 									"sessions": [
 										{
 											"id": "0f9c5a941aa4d755a54b84be1f6535b1",
@@ -1397,7 +1471,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 										},
 										{
 											"id": "0f9c5a941aa4d755a54b84be1f6535b1",
-											"capabilities": "{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"91.0\"}"
+											"capabilities": "{\"browserName\": \"chrome\", \"platformName\": \"Windows 11\", \"browserVersion\": \"91.0\"}"
 										}
 									]
 								}
@@ -1416,12 +1490,12 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				browserVersion:     "91.0",
 				platformName:       "Windows 11",
 			},
-			wantNewRequestNodes: 1,
-			wantOnGoingSessions: 1,
+			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
 		{
-			name: "5 queue requests with scaler parameter nodeMaxSessions is 2 should return count as 3",
+			name: "Given_5_requests_explicit_name_version_platform_When_scaler_metadata_set_browserVersion_as_latest_Then_scaler_should_not_scale_up_for_those_request_and_return_0",
 			args: args{
 				b: []byte(`{
 				  "data": {
@@ -1451,11 +1525,12 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 				nodeMaxSessions:    2,
 			},
-			wantNewRequestNodes: 3,
+			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
-			name: "5 queue requests with scaler parameter nodeMaxSessions is 3 should return count as 2",
+			name: "Given_5_requests_explicit_name_version_platform_When_scaler_metadata_set_browserVersion_as_latest_Then_scaler_should_not_scale_up_for_those_requests_and_return_0",
 			args: args{
 				b: []byte(`{
 				  "data": {
@@ -1485,11 +1560,12 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 				nodeMaxSessions:    3,
 			},
-			wantNewRequestNodes: 2,
+			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
-			name: "5 queue requests with request matching browserName and platformName and scaler param nodeMaxSessions is 3 and existing node with 1 available slot should return count as 2",
+			name: "Given_5_requests_without_browserVersion_When_scaler_metadata_explicit_name_version_platform_Then_scaler_should_not_scaler_up_for_those_requests_and_return_0",
 			args: args{
 				b: []byte(`{
 					"data": {
@@ -1537,7 +1613,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 				nodeMaxSessions:    3,
 			},
-			wantNewRequestNodes: 2,
+			wantNewRequestNodes: 0,
 			wantOnGoingSessions: 2,
 			wantErr:             false,
 		},
@@ -1579,6 +1655,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1621,6 +1698,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				platformName:       "linux",
 			},
 			wantNewRequestNodes: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
@@ -1653,10 +1731,11 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 				nodeMaxSessions:    2,
 			},
 			wantNewRequestNodes: 2,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 		{
-			name: "sessions requests and active sessions with 1 matching browsername, platformName and sessionBrowserVersion should return count as 1",
+			name: "Given_2_requests_include_1_without_browserVersion_When_scaler_metadata_explicit_name_version_platform_Then_scaler_should_scale_up_for_1_request_has_browserVersion_and_return_2_ongoing_sessions",
 			args: args{
 				b: []byte(`{
 					"data": {
@@ -1692,7 +1771,7 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 						"sessionsInfo": {
 							"sessionQueueRequests": [
 								"{\n  \"browserName\": \"chrome\",\n \"platformName\": \"linux\"\n}",
-								"{\n  \"browserName\": \"chrome\",\n \"platformName\": \"Windows 11\",\n \"browserVersion\": \"91.0\"\n}"
+								"{\n  \"browserName\": \"chrome\",\n \"platformName\": \"linux\",\n \"browserVersion\": \"91.0\"\n}"
 							]
 						}
 					}
@@ -1704,6 +1783,540 @@ func Test_getCountFromSeleniumResponse(t *testing.T) {
 			},
 			wantNewRequestNodes: 1,
 			wantOnGoingSessions: 2,
+			wantErr:             false,
+		},
+		{
+			name: `Given_3_requests_include_1_without_browserVersion_
+			When_4_existing_nodes_with_different_stereotypes_browserVersion_
+			And_scaler_metadata_set_browserVersion_as_latest_
+			Then_return_1_new_scale_and_4_ongoing`,
+			args: args{
+				b: []byte(`{
+					"data": {
+						"grid": {
+							"sessionCount": 4,
+							"maxSession": 4,
+							"totalSlots": 4
+						},
+						"nodesInfo": {
+							"nodes": [
+								{
+									"id": "node-131",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-130",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-129",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-2",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-128",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								}
+							]
+						},
+						"sessionsInfo": {
+							"sessionQueueRequests": [
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"131\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"130\"}"
+							]
+						}
+					}
+				}`),
+				browserName:        "chrome",
+				sessionBrowserName: "chrome",
+				browserVersion:     "latest",
+				platformName:       "linux",
+			},
+			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 4,
+			wantErr:             false,
+		},
+		{
+			name: `Given_3_requests_include_1_without_browserVersion_
+			When_4_existing_nodes_with_different_stereotypes_browserVersion_
+			And_scaler_metadata_set_browserVersion_131.0_
+			Then_return_1_new_scale_and_1_ongoing`,
+			args: args{
+				b: []byte(`{
+					"data": {
+						"grid": {
+							"sessionCount": 4,
+							"maxSession": 4,
+							"totalSlots": 4
+						},
+						"nodesInfo": {
+							"nodes": [
+								{
+									"id": "node-131",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-130",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-129",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-2",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-128",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								}
+							]
+						},
+						"sessionsInfo": {
+							"sessionQueueRequests": [
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"131\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"130\"}"
+							]
+						}
+					}
+				}`),
+				browserName:        "chrome",
+				sessionBrowserName: "chrome",
+				browserVersion:     "131.0",
+				platformName:       "linux",
+			},
+			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 1,
+			wantErr:             false,
+		},
+		{
+			name: `Given_3_requests_include_1_without_browserVersion_
+			When_4_existing_nodes_with_different_stereotypes_browserVersion_
+			And_scaler_metadata_set_browserVersion_130.0_
+			Then_return_1_new_scale_and_1_ongoing`,
+			args: args{
+				b: []byte(`{
+					"data": {
+						"grid": {
+							"sessionCount": 4,
+							"maxSession": 4,
+							"totalSlots": 4
+						},
+						"nodesInfo": {
+							"nodes": [
+								{
+									"id": "node-131",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-130",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-129",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-2",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-128",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								}
+							]
+						},
+						"sessionsInfo": {
+							"sessionQueueRequests": [
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"131\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"130\"}"
+							]
+						}
+					}
+				}`),
+				browserName:        "chrome",
+				sessionBrowserName: "chrome",
+				browserVersion:     "130.0",
+				platformName:       "linux",
+			},
+			wantNewRequestNodes: 1,
+			wantOnGoingSessions: 1,
+			wantErr:             false,
+		},
+		{
+			name: `Given_3_requests_include_1_without_browserVersion_
+			When_4_existing_nodes_with_different_stereotypes_browserVersion_and_1_available_
+			And_scaler_metadata_set_browserVersion_as_latest_
+			Then_return_0_new_scale_and_3_ongoing`,
+			args: args{
+				b: []byte(`{
+					"data": {
+						"grid": {
+							"sessionCount": 3,
+							"maxSession": 4,
+							"totalSlots": 4
+						},
+						"nodesInfo": {
+							"nodes": [
+								{
+									"id": "node-131",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-130",
+									"status": "UP",
+									"sessionCount": 0,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+									]
+								},
+								{
+									"id": "node-129",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-128",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								}
+							]
+						},
+						"sessionsInfo": {
+							"sessionQueueRequests": [
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"131\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"130\"}"
+							]
+						}
+					}
+				}`),
+				browserName:        "chrome",
+				sessionBrowserName: "chrome",
+				browserVersion:     "latest",
+				platformName:       "linux",
+			},
+			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 3,
+			wantErr:             false,
+		},
+		{
+			name: `Given_3_requests_include_1_without_browserVersion_
+			When_4_existing_nodes_with_different_stereotypes_browserVersion_and_1_available_
+			And_scaler_metadata_set_browserVersion_131.0_
+			Then_return_0_new_scale_and_0_ongoing`,
+			args: args{
+				b: []byte(`{
+					"data": {
+						"grid": {
+							"sessionCount": 3,
+							"maxSession": 4,
+							"totalSlots": 4
+						},
+						"nodesInfo": {
+							"nodes": [
+								{
+									"id": "node-131",
+									"status": "UP",
+									"sessionCount": 0,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+									]
+								},
+								{
+									"id": "node-130",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-129",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-128",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								}
+							]
+						},
+						"sessionsInfo": {
+							"sessionQueueRequests": [
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"131\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"130\"}"
+							]
+						}
+					}
+				}`),
+				browserName:        "chrome",
+				sessionBrowserName: "chrome",
+				browserVersion:     "131.0",
+				platformName:       "linux",
+			},
+			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
+			wantErr:             false,
+		},
+		{
+			name: `Given_3_requests_include_1_without_browserVersion_
+			When_4_existing_nodes_with_different_stereotypes_browserVersion_and_1_available_
+			And_scaler_metadata_set_browserVersion_130.0_
+			Then_return_0_new_scale_and_0_ongoing`,
+			args: args{
+				b: []byte(`{
+					"data": {
+						"grid": {
+							"sessionCount": 3,
+							"maxSession": 4,
+							"totalSlots": 4
+						},
+						"nodesInfo": {
+							"nodes": [
+								{
+									"id": "node-131",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"131.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-130",
+									"status": "UP",
+									"sessionCount": 0,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"130.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+									]
+								},
+								{
+									"id": "node-129",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"129.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								},
+								{
+									"id": "node-128",
+									"status": "UP",
+									"sessionCount": 1,
+									"maxSession": 1,
+									"slotCount": 1,
+									"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}}]",
+									"sessions": [
+										{
+											"id": "session-1",
+											"capabilities": "{\"browserName\": \"chrome\", \"browserVersion\": \"128.0\", \"platformName\": \"linux\"}"
+										}
+									]
+								}
+							]
+						},
+						"sessionsInfo": {
+							"sessionQueueRequests": [
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"131\"}",
+								"{\"browserName\": \"chrome\", \"platformName\": \"linux\", \"browserVersion\": \"130\"}"
+							]
+						}
+					}
+				}`),
+				browserName:        "chrome",
+				sessionBrowserName: "chrome",
+				browserVersion:     "130.0",
+				platformName:       "linux",
+			},
+			wantNewRequestNodes: 0,
+			wantOnGoingSessions: 0,
 			wantErr:             false,
 		},
 	}
