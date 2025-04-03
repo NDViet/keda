@@ -1,0 +1,113 @@
+name: release-patch
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Push Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write # needed for signing the images with GitHub OIDC Token **not production ready**
+
+    # keda-tools is built from github.com/test-tools/tools/Dockerfile
+    container: ghcr.io/kedacore/keda-tools:1.23.6
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 1
+
+      - name: Register workspace path
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - id: go-paths
+        run: |
+          echo "mod_cache=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+          echo "build_cache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+
+      - name: Go modules cache
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: ${{ steps.go-paths.outputs.mod_cache }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+      - name: Go build cache
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: ${{ steps.go-paths.outputs.build_cache }}
+          key: ${{ runner.os }}-go-build-cache-${{ hashFiles('**/go.sum') }}
+
+      - name: Go modules sync
+        run: go mod tidy -compat=1.23
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          # Username used to log in to a Docker registry. If not set then no login will occur
+          username: ${{secrets.DOCKER_USERNAME}}
+          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
+          password: ${{secrets.DOCKER_PASSWORD}}
+          # Server address of Docker registry. If not set then will default to Docker Hub
+          registry: docker.io
+
+      - name: Get the version
+        id: get_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Release Deployment YAML file
+        run: IMAGE_REPO=${IMAGE_REPO} IMAGE_REGISTRY=${IMAGE_REGISTRY} make release
+        env:
+          IMAGE_REPO: ${{ vars.DOCKER_NAMESPACE || 'selenium' }}
+          IMAGE_REGISTRY: docker.io
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+
+      - name: Publish KEDA images on GitHub Container Registry
+        run: IMAGE_REPO=${IMAGE_REPO} IMAGE_REGISTRY=${IMAGE_REGISTRY} make publish-multiarch
+        env:
+          IMAGE_REPO: ${{ vars.DOCKER_NAMESPACE || 'selenium' }}
+          IMAGE_REGISTRY: docker.io
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      # https://github.com/sigstore/cosign-installer
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+
+      - name: Check Cosign install!
+        run: cosign version
+
+      - name: Sign KEDA images published on GitHub Container Registry
+        # This step uses the identity token to provision an ephemeral certificate
+        # against the sigstore community Fulcio instance.
+        run: IMAGE_REPO=${IMAGE_REPO} IMAGE_REGISTRY=${IMAGE_REGISTRY} make sign-images
+        env:
+          IMAGE_REPO: ${{ vars.DOCKER_NAMESPACE || 'selenium' }}
+          IMAGE_REGISTRY: docker.io
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@master
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          tag_name: "${{ steps.get_version.outputs.TAG_NAME }}"
+          name: "${{ steps.get_version.outputs.TAG_NAME }}"
+          generate_release_notes: true
+          prerelease: false
+          draft: false
+          append_body: false
+          files: |
+            keda-${{ steps.get_version.outputs.VERSION }}.yaml
+            keda-${{ steps.get_version.outputs.VERSION }}-core.yaml
+            keda-${{ steps.get_version.outputs.VERSION }}-crds.yaml
