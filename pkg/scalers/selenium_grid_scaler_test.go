@@ -3216,6 +3216,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				OverprovisionRatio:     1,
 			},
 		},
 		{
@@ -3240,6 +3241,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				OverprovisionRatio:     1,
 			},
 		},
 		{
@@ -3263,6 +3265,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				OverprovisionRatio:     1,
 			},
 		},
 		{
@@ -3293,6 +3296,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				OverprovisionRatio:     1,
 			},
 		},
 		{
@@ -3323,6 +3327,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				OverprovisionRatio:     1,
 			},
 		},
 		{
@@ -3355,6 +3360,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "{\"myApp:version\": \"beta\"}",
+				OverprovisionRatio:     1,
 			},
 		},
 		{
@@ -3381,6 +3387,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				OverprovisionRatio:     1,
 			},
 		},
 		{
@@ -3627,7 +3634,112 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				OverprovisionRatio:     1,
 			},
+		},
+		{
+			name: "valid overprovisionRatio should return metadata with custom scaling",
+			args: args{
+				config: &scalersconfig.ScalerConfig{
+					TriggerMetadata: map[string]string{
+						"url":                 "http://selenium-hub:4444/graphql",
+						"browserName":         "chrome",
+						"browserVersion":      "91.0",
+						"unsafeSsl":           "true",
+						"activationThreshold": "10",
+						"platformName":        "Windows 11",
+						"nodeMaxSessions":     "3",
+						"overprovisionRatio":  "1.2",
+					},
+				},
+			},
+			wantErr: false,
+			want: &seleniumGridScalerMetadata{
+				URL:                    "http://selenium-hub:4444/graphql",
+				BrowserName:            "chrome",
+				SessionBrowserName:     "chrome",
+				TargetValue:            1,
+				ActivationThreshold:    10,
+				BrowserVersion:         "91.0",
+				UnsafeSsl:              true,
+				PlatformName:           "Windows 11",
+				NodeMaxSessions:        3,
+				EnableManagedDownloads: true,
+				Capabilities:           "",
+				OverprovisionRatio:     1.2,
+			},
+		},
+		{
+			name: "scalePercentage with invalid range value should error",
+			args: args{
+				config: &scalersconfig.ScalerConfig{
+					TriggerMetadata: map[string]string{
+						"url":                 "http://selenium-hub:4444/graphql",
+						"browserName":         "chrome",
+						"browserVersion":      "91.0",
+						"unsafeSsl":           "true",
+						"activationThreshold": "10",
+						"platformName":        "Windows 11",
+						"nodeMaxSessions":     "3",
+						"scalePercentage":     "0.8",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid overprovisionRatio (zero) should throw error",
+			args: args{
+				config: &scalersconfig.ScalerConfig{
+					TriggerMetadata: map[string]string{
+						"url":                 "http://selenium-hub:4444/graphql",
+						"browserName":         "chrome",
+						"browserVersion":      "91.0",
+						"unsafeSsl":           "true",
+						"activationThreshold": "10",
+						"platformName":        "Windows 11",
+						"nodeMaxSessions":     "3",
+						"overprovisionRatio":  "0",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid overprovisionRatio (negative) should throw error",
+			args: args{
+				config: &scalersconfig.ScalerConfig{
+					TriggerMetadata: map[string]string{
+						"url":                 "http://selenium-hub:4444/graphql",
+						"browserName":         "chrome",
+						"browserVersion":      "91.0",
+						"unsafeSsl":           "true",
+						"activationThreshold": "10",
+						"platformName":        "Windows 11",
+						"nodeMaxSessions":     "3",
+						"overprovisionRatio":  "-1.0",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid overprovisionRatio (non-numeric) should throw error",
+			args: args{
+				config: &scalersconfig.ScalerConfig{
+					TriggerMetadata: map[string]string{
+						"url":                 "http://selenium-hub:4444/graphql",
+						"browserName":         "chrome",
+						"browserVersion":      "91.0",
+						"unsafeSsl":           "true",
+						"activationThreshold": "10",
+						"platformName":        "Windows 11",
+						"nodeMaxSessions":     "3",
+						"overprovisionRatio":  "invalid",
+					},
+				},
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

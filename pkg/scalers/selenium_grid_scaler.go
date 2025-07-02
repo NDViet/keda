@@ -28,20 +28,21 @@ type seleniumGridScaler struct {
 type seleniumGridScalerMetadata struct {
 	triggerIndex int
 
-	URL                    string `keda:"name=url,                      order=authParams;triggerMetadata"`
-	AuthType               string `keda:"name=authType,                 order=authParams;resolvedEnv, optional"`
-	Username               string `keda:"name=username,                 order=authParams;resolvedEnv, optional"`
-	Password               string `keda:"name=password,                 order=authParams;resolvedEnv, optional"`
-	AccessToken            string `keda:"name=accessToken,              order=authParams;resolvedEnv, optional"`
-	BrowserName            string `keda:"name=browserName,              order=triggerMetadata, optional"`
-	SessionBrowserName     string `keda:"name=sessionBrowserName,       order=triggerMetadata, optional"`
-	BrowserVersion         string `keda:"name=browserVersion,           order=triggerMetadata, optional"`
-	PlatformName           string `keda:"name=platformName,             order=triggerMetadata, optional"`
-	ActivationThreshold    int64  `keda:"name=activationThreshold,      order=triggerMetadata, optional"`
-	UnsafeSsl              bool   `keda:"name=unsafeSsl,                order=triggerMetadata, default=false"`
-	NodeMaxSessions        int64  `keda:"name=nodeMaxSessions,          order=triggerMetadata, default=1"`
-	EnableManagedDownloads bool   `keda:"name=enableManagedDownloads,   order=triggerMetadata, default=true"`
-	Capabilities           string `keda:"name=capabilities,             order=triggerMetadata, optional"`
+	URL                    string  `keda:"name=url,                      order=authParams;triggerMetadata"`
+	AuthType               string  `keda:"name=authType,                 order=authParams;resolvedEnv, optional"`
+	Username               string  `keda:"name=username,                 order=authParams;resolvedEnv, optional"`
+	Password               string  `keda:"name=password,                 order=authParams;resolvedEnv, optional"`
+	AccessToken            string  `keda:"name=accessToken,              order=authParams;resolvedEnv, optional"`
+	BrowserName            string  `keda:"name=browserName,              order=triggerMetadata, optional"`
+	SessionBrowserName     string  `keda:"name=sessionBrowserName,       order=triggerMetadata, optional"`
+	BrowserVersion         string  `keda:"name=browserVersion,           order=triggerMetadata, optional"`
+	PlatformName           string  `keda:"name=platformName,             order=triggerMetadata, optional"`
+	ActivationThreshold    float64 `keda:"name=activationThreshold,      order=triggerMetadata, optional"`
+	UnsafeSsl              bool    `keda:"name=unsafeSsl,                order=triggerMetadata, default=false"`
+	NodeMaxSessions        int64   `keda:"name=nodeMaxSessions,          order=triggerMetadata, default=1"`
+	EnableManagedDownloads bool    `keda:"name=enableManagedDownloads,   order=triggerMetadata, default=true"`
+	Capabilities           string  `keda:"name=capabilities,             order=triggerMetadata, optional"`
+	OverprovisionRatio     float64 `keda:"name=overprovisionRatio,       order=triggerMetadata, default=1"`
 
 	TargetValue int64
 }
@@ -174,17 +175,23 @@ func parseCapabilitiesToMap(_capabilities string) (map[string]interface{}, error
 
 func parseSeleniumGridScalerMetadata(config *scalersconfig.ScalerConfig) (*seleniumGridScalerMetadata, error) {
 	meta := &seleniumGridScalerMetadata{
-		TargetValue: 1,
+		TargetValue:        1,
+		OverprovisionRatio: 1, // Default to 1 (no overprovisioning)
 	}
 
 	if err := config.TypedConfig(meta); err != nil {
-		return nil, fmt.Errorf("error parsing prometheus metadata: %w", err)
+		return nil, fmt.Errorf("error parsing Selenium Grid GraphQL response: %w", err)
 	}
 
 	meta.triggerIndex = config.TriggerIndex
 
 	if meta.SessionBrowserName == "" {
 		meta.SessionBrowserName = meta.BrowserName
+	}
+
+	// Validate an overprovisioning ratio is at least 1 (100% of the original value)
+	if meta.OverprovisionRatio < 1 {
+		return nil, fmt.Errorf("overprovisionRatio must be greater than or equal to 1, for example: 1.25 (overprovision 25 percentage), got: %f", meta.OverprovisionRatio)
 	}
 
 	return meta, nil
@@ -204,9 +211,13 @@ func (s *seleniumGridScaler) GetMetricsAndActivity(ctx context.Context, metricNa
 		return []external_metrics.ExternalMetricValue{}, false, fmt.Errorf("error requesting selenium grid endpoint: %w", err)
 	}
 
-	metric := GenerateMetricInMili(metricName, float64(newRequestNodes+onGoingSessions))
+	// Apply an overprovisioning ratio to the total count
+	totalCount := float64(newRequestNodes + onGoingSessions)
+	scaledCount := totalCount * s.metadata.OverprovisionRatio
 
-	return []external_metrics.ExternalMetricValue{metric}, (newRequestNodes + onGoingSessions) > s.metadata.ActivationThreshold, nil
+	metric := GenerateMetricInMili(metricName, scaledCount)
+
+	return []external_metrics.ExternalMetricValue{metric}, scaledCount > s.metadata.ActivationThreshold, nil
 }
 
 func buildSeleniumGridMetricName(meta *seleniumGridScalerMetadata) string {
