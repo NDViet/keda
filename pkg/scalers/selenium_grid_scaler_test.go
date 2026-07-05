@@ -1,6 +1,9 @@
 package scalers
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
@@ -3216,6 +3219,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3240,6 +3244,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3263,6 +3268,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3293,6 +3299,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3323,6 +3330,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3355,6 +3363,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "{\"myApp:version\": \"beta\"}",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3381,6 +3390,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3409,6 +3419,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3452,6 +3463,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3481,6 +3493,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3517,6 +3530,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3554,6 +3568,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3591,6 +3606,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 		{
@@ -3627,6 +3643,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
+				ScaleStrategy:          "default",
 			},
 		},
 	}
@@ -3639,6 +3656,96 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parseSeleniumGridScalerMetadata() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_GetMetricsAndActivity_ScaleStrategy(t *testing.T) {
+	// Grid with 2 queued chrome requests and 1 on-going chrome session on a fully
+	// occupied Node. getCountFromSeleniumResponse yields newRequestNodes=2, onGoingSessions=1.
+	response := []byte(`{
+		"data": {
+			"grid": { "sessionCount": 1, "maxSession": 1, "totalSlots": 1 },
+			"nodesInfo": {
+				"nodes": [
+					{
+						"id": "node-1",
+						"status": "UP",
+						"sessionCount": 1,
+						"maxSession": 1,
+						"slotCount": 1,
+						"stereotypes": "[{\"slots\": 1, \"stereotype\": {\"browserName\": \"chrome\"}}]",
+						"sessions": [
+							{
+								"id": "session-1",
+								"capabilities": "{\"browserName\": \"chrome\"}",
+								"slot": { "id": "slot-1", "stereotype": "{\"browserName\": \"chrome\"}" }
+							}
+						]
+					}
+				]
+			},
+			"sessionsInfo": {
+				"sessionQueueRequests": [
+					"{\"browserName\": \"chrome\"}",
+					"{\"browserName\": \"chrome\"}"
+				]
+			}
+		}
+	}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(response)
+	}))
+	defer server.Close()
+
+	tests := []struct {
+		name          string
+		scaleStrategy string
+		wantMetric    int64
+	}{
+		{
+			name:          "default strategy includes on-going sessions",
+			scaleStrategy: "default",
+			wantMetric:    3,
+		},
+		{
+			name:          "accurate strategy excludes on-going sessions",
+			scaleStrategy: "accurate",
+			wantMetric:    2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			meta, err := parseSeleniumGridScalerMetadata(&scalersconfig.ScalerConfig{
+				TriggerMetadata: map[string]string{
+					"url":           server.URL,
+					"browserName":   "chrome",
+					"scaleStrategy": tt.scaleStrategy,
+				},
+			})
+			if err != nil {
+				t.Fatalf("parseSeleniumGridScalerMetadata() error = %v", err)
+			}
+
+			s := &seleniumGridScaler{
+				metadata:   meta,
+				httpClient: http.DefaultClient,
+				logger:     logr.Discard(),
+			}
+
+			metrics, active, err := s.GetMetricsAndActivity(context.Background(), "s0-selenium-grid-chrome")
+			if err != nil {
+				t.Fatalf("GetMetricsAndActivity() error = %v", err)
+			}
+			if !active {
+				t.Errorf("GetMetricsAndActivity() active = false, want true")
+			}
+			if got := metrics[0].Value.MilliValue() / 1000; got != tt.wantMetric {
+				t.Errorf("GetMetricsAndActivity() metric = %v, want %v", got, tt.wantMetric)
 			}
 		})
 	}
