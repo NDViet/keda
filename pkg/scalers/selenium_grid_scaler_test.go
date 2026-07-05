@@ -3219,7 +3219,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3244,7 +3244,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3268,7 +3268,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3299,7 +3299,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3330,7 +3330,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3363,7 +3363,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "{\"myApp:version\": \"beta\"}",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3390,7 +3390,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3419,7 +3419,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3463,7 +3463,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3493,7 +3493,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        1,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3530,7 +3530,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3568,7 +3568,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3606,7 +3606,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 		{
@@ -3643,7 +3643,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 				NodeMaxSessions:        3,
 				EnableManagedDownloads: true,
 				Capabilities:           "",
-				ScaleStrategy:          "default",
+				JobScalingStrategy:     "default",
 			},
 		},
 	}
@@ -3661,7 +3661,7 @@ func Test_parseSeleniumGridScalerMetadata(t *testing.T) {
 	}
 }
 
-func Test_GetMetricsAndActivity_ScaleStrategy(t *testing.T) {
+func Test_GetMetricsAndActivity_JobScalingStrategy(t *testing.T) {
 	// Grid with 2 queued chrome requests and 1 on-going chrome session on a fully
 	// occupied Node. getCountFromSeleniumResponse yields newRequestNodes=2, onGoingSessions=1.
 	response := []byte(`{
@@ -3702,19 +3702,19 @@ func Test_GetMetricsAndActivity_ScaleStrategy(t *testing.T) {
 	defer server.Close()
 
 	tests := []struct {
-		name          string
-		scaleStrategy string
-		wantMetric    int64
+		name               string
+		jobScalingStrategy string
+		wantMetric         int64
 	}{
 		{
-			name:          "default strategy includes on-going sessions",
-			scaleStrategy: "default",
-			wantMetric:    3,
+			name:               "default strategy includes on-going sessions",
+			jobScalingStrategy: "default",
+			wantMetric:         3,
 		},
 		{
-			name:          "accurate strategy excludes on-going sessions",
-			scaleStrategy: "accurate",
-			wantMetric:    2,
+			name:               "accurate strategy excludes on-going sessions",
+			jobScalingStrategy: "accurate",
+			wantMetric:         2,
 		},
 	}
 
@@ -3722,9 +3722,9 @@ func Test_GetMetricsAndActivity_ScaleStrategy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			meta, err := parseSeleniumGridScalerMetadata(&scalersconfig.ScalerConfig{
 				TriggerMetadata: map[string]string{
-					"url":           server.URL,
-					"browserName":   "chrome",
-					"scaleStrategy": tt.scaleStrategy,
+					"url":                server.URL,
+					"browserName":        "chrome",
+					"jobScalingStrategy": tt.jobScalingStrategy,
 				},
 			})
 			if err != nil {

@@ -42,7 +42,7 @@ type seleniumGridScalerMetadata struct {
 	NodeMaxSessions        int64  `keda:"name=nodeMaxSessions,          order=triggerMetadata, default=1"`
 	EnableManagedDownloads bool   `keda:"name=enableManagedDownloads,   order=triggerMetadata, default=true"`
 	Capabilities           string `keda:"name=capabilities,             order=triggerMetadata, optional"`
-	ScaleStrategy          string `keda:"name=scaleStrategy,            order=triggerMetadata, enum=default;accurate, default=default"`
+	JobScalingStrategy     string `keda:"name=jobScalingStrategy,       order=triggerMetadata, enum=default;accurate, default=default"`
 
 	TargetValue int64
 }
@@ -206,10 +206,14 @@ func (s *seleniumGridScaler) GetMetricsAndActivity(ctx context.Context, metricNa
 	}
 
 	// The metric returned to KEDA represents the number of Nodes (Job pods) the Grid needs.
+	// jobScalingStrategy only affects ScaledJob deployments; it must mirror the ScaledJob's
+	// own spec.scalingStrategy.strategy so the emitted metric matches how KEDA computes the
+	// effective max scale for Jobs.
 	//
-	// With the "default" scaling strategy (or a ScaledObject), KEDA subtracts the running
-	// Job count from the desired scale, so the queued requests AND the on-going sessions must
-	// both be reported for the arithmetic to resolve to the number of *new* Nodes to create.
+	// With the "default" scaling strategy (or a ScaledObject, which ignores this param), KEDA
+	// subtracts the running Job count from the desired scale, so the queued requests AND the
+	// on-going sessions must both be reported for the arithmetic to resolve to the number of
+	// *new* Nodes to create.
 	//
 	// The "accurate" (and "eager") ScaledJob strategies instead subtract the pending Job count.
 	// On-going sessions are already served by running Jobs which are not deducted by those
@@ -217,7 +221,7 @@ func (s *seleniumGridScaler) GetMetricsAndActivity(ctx context.Context, metricNa
 	// creation that never scales back down (see SeleniumHQ/docker-selenium#3167). In that mode
 	// we report only the number of new Nodes required to drain the session queue.
 	count := newRequestNodes + onGoingSessions
-	if s.metadata.ScaleStrategy == "accurate" {
+	if s.metadata.JobScalingStrategy == "accurate" {
 		count = newRequestNodes
 	}
 
