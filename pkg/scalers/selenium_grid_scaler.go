@@ -42,7 +42,7 @@ type seleniumGridScalerMetadata struct {
 	NodeMaxSessions        int64  `keda:"name=nodeMaxSessions,          order=triggerMetadata, default=1"`
 	EnableManagedDownloads bool   `keda:"name=enableManagedDownloads,   order=triggerMetadata, default=true"`
 	Capabilities           string `keda:"name=capabilities,             order=triggerMetadata, optional"`
-	JobScalingStrategy     string `keda:"name=jobScalingStrategy,       order=triggerMetadata, enum=default;accurate, default=default"`
+	JobScalingStrategy     string `keda:"name=jobScalingStrategy,       order=triggerMetadata, enum=default;custom;accurate;eager, default=default"`
 
 	TargetValue int64
 }
@@ -206,22 +206,29 @@ func (s *seleniumGridScaler) GetMetricsAndActivity(ctx context.Context, metricNa
 	}
 
 	// The metric returned to KEDA represents the number of Nodes (Job pods) the Grid needs.
-	// jobScalingStrategy only affects ScaledJob deployments; it must mirror the ScaledJob's
-	// own spec.scalingStrategy.strategy so the emitted metric matches how KEDA computes the
-	// effective max scale for Jobs.
+	// jobScalingStrategy only affects ScaledJob deployments; it must mirror the ScaledJob's own
+	// spec.scalingStrategy.strategy so the emitted metric matches how KEDA computes the effective
+	// max scale for Jobs (see pkg/scaling/executor/scale_jobs.go). ScaledObject deployments do
+	// not have per-strategy Job accounting and always use the "total desired" convention below.
 	//
-	// With the "default" scaling strategy (or a ScaledObject, which ignores this param), KEDA
-	// subtracts the running Job count from the desired scale, so the queued requests AND the
-	// on-going sessions must both be reported for the arithmetic to resolve to the number of
-	// *new* Nodes to create.
+	// The strategies split into two conventions based on which Job count KEDA deducts:
 	//
-	// The "accurate" (and "eager") ScaledJob strategies instead subtract the pending Job count.
-	// On-going sessions are already served by running Jobs which are not deducted by those
-	// strategies, so including them here double-counts in-progress work and causes runaway Job
-	// creation that never scales back down (see SeleniumHQ/docker-selenium#3167). In that mode
-	// we report only the number of new Nodes required to drain the session queue.
+	//   * "default" deducts the running Job count, and "custom" deducts
+	//     customScalingRunningJobPercentage of the running Job count. On-going sessions are
+	//     served by running Jobs, so they cancel out in that deduction: the scaler must report
+	//     queued requests PLUS on-going sessions ("total desired") for the arithmetic to resolve
+	//     to the number of *new* Nodes to create. This is also the correct value for a
+	//     ScaledObject (HPA), which has no Job bookkeeping to subtract running work.
+	//
+	//   * "accurate" deducts the pending Job count, and "eager" deducts the running and pending
+	//     Job counts (bounded by maxScale). These strategies do not re-add running work, so
+	//     including on-going sessions here double-counts in-progress work and causes runaway Job
+	//     creation that never scales back down (see SeleniumHQ/docker-selenium#3167). In this
+	//     mode the scaler reports only the number of new Nodes required to drain the session
+	//     queue.
 	count := newRequestNodes + onGoingSessions
-	if s.metadata.JobScalingStrategy == "accurate" {
+	switch s.metadata.JobScalingStrategy {
+	case "accurate", "eager":
 		count = newRequestNodes
 	}
 

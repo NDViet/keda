@@ -3712,8 +3712,18 @@ func Test_GetMetricsAndActivity_JobScalingStrategy(t *testing.T) {
 			wantMetric:         3,
 		},
 		{
+			name:               "custom strategy includes on-going sessions",
+			jobScalingStrategy: "custom",
+			wantMetric:         3,
+		},
+		{
 			name:               "accurate strategy excludes on-going sessions",
 			jobScalingStrategy: "accurate",
+			wantMetric:         2,
+		},
+		{
+			name:               "eager strategy excludes on-going sessions",
+			jobScalingStrategy: "eager",
 			wantMetric:         2,
 		},
 	}
